@@ -11,7 +11,7 @@ class Process:
         self.HEIGHT = 800
         self.FPS = 30
 
-        self.black = pygame.color(0, 0, 0)
+        self.black = pygame.Color(0, 0, 0)
         self.red = pygame.Color(rgbvalue=[255, 0, 0])
         self.blue = pygame.Color(65, 105, 255)
 
@@ -27,10 +27,10 @@ class Process:
             print('OK')
 
     def layout(self):
-        self.layout = pygame.display.set_mode(size = (self.WIDTH, self.HEIGHT))
+        self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
         pygame.display.set_caption("ZMIY")
 
-    def loops(self, step):
+    def events(self, step):
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RIGHT:
@@ -52,7 +52,8 @@ class Process:
 
     def score(self, choice=1):
         score_font = pygame.font.SysFont('georgia', 32)
-        score_surf = score_font.render('Score: {0}'.format(self.score(), True, self.black))
+        score_surf = score_font.render(
+            'Score: {0}'.format(self.score), True, self.black)
         score_rect = score_surf.get_rect()
 
         if choice == 1:
@@ -60,14 +61,14 @@ class Process:
         else:
             score_rect.midtop = (360, 120)
 
-        self.layout.blit((score_surf, score_rect))
+        self.screen.blit(score_surf, score_rect)
 
     def gameover(self):
         gameover_font = pygame.font.SysFont('georgia', 83)
         gameover_surf = gameover_font.render('GAME OVER', True, self.red)
         gameover_rect = gameover_surf.get_rect()
         gameover_rect.midtop = (360, 15)
-        self.layout.blit((gameover_surf, gameover_rect))
+        self.screen.blit(gameover_surf, gameover_rect)
         self.score(0)
         pygame.display.flip()
         time.sleep(3)
@@ -84,48 +85,84 @@ class Snake:
         self.step = self.direction
 
     def direction(self):
-        if any(self.step == 'RIGHT' and not self.direction == 'LEFT',
-               self.step == 'LEFT' and not self.direction == 'RIGHT',
-               self.step == 'UP' and not self.direction == 'DOWN',
-               self.step == 'DOWN' and not self.direction == 'UP'):
+        if any([self.step == 'RIGHT' and not self.direction == 'LEFT',
+                self.step == 'LEFT' and not self.direction == 'RIGHT',
+                self.step == 'UP' and not self.direction == 'DOWN',
+                self.step == 'DOWN' and not self.direction == 'UP']):
             self.direction = self.step
 
     def head(self):
-        if
+        if self.direction == 'RIGHT':
+            self.snake_head[0] += 10
+        elif self.direction == 'LEFT':
+            self.snake_head[0] -= 10
+        elif self.direction == 'UP':
+            self.snake_head[1] -= 10
+        elif self.direction == 'DOWN':
+            self.snake_head[1] += 10
 
-    def body(self):
-        pass
+    def body(self, score, food_pos, screen_width, screen_height):
+        self.snake_body.insert(0, list(self.snake_head))
+        # если съели еду
+        if (self.snake_head[0] == food_pos[0] and
+                self.snake_head[1] == food_pos[1]):
+            food_pos = [random.randrange(1, screen_width / 10) * 10,
+                        random.randrange(1, screen_height / 10) * 10]
+            score += 1
+        else:
+            self.snake_body.pop()
+        return score, food_pos
 
-    def snake_image(self):
-        pass
+    def snake_image(self, screen, surface_color):
+        screen.fill(surface_color)
+        for pos in self.snake_body:
+            pygame.draw.rect(screen, self.snake_color, pygame.Rect(
+                pos[0], pos[1], 10, 10))
 
-    def boundaries(self):
-        pass
+    def boundaries(self, gameover, WIDTH, HEIGHT):
+        if any((
+                self.snake_head[0] > WIDTH - 10
+                or self.snake_head[0] < 0,
+                self.snake_head[1] > HEIGHT - 10
+                or self.snake_head[1] < 0
+        )):
+            gameover()
+        for block in self.snake_body[1:]:
+            if (block[0] == self.snake_head[0] and
+                    block[1] == self.snake_head[1]):
+                gameover()
 
 
 class Yummy:
-    def __init__(self):
-        pass
+    def __init__(self, yummy_color, screen_width, screen_height):
+        self.yummy_color = yummy_color
+        self.yummy_size_x = 10
+        self.yummy_size_y = 10
+        self.yummy_pos = [random.randrange(1, screen_width / 10) * 10,
+                          random.randrange(1, screen_height / 10) * 10]
 
-    def yummy_image(self):
-        pass
+    def yummy_image(self, screen):
+        pygame.draw.rect(screen, self.yummy_color, pygame.Rect(
+            self.yummy_pos[0], self.yummy_pos[1],
+            self.yummy_size_x, self.yummy_size_y
+        ))
 
 
 process = Process()
 snake = Snake(process.red)
-yummy = Yummy(process.blue, game.screen_width, game.screen_height)
+yummy = Yummy(process.blue, process.WIDTH, process.HEIGHT)
 
 process.born_n_checking()
 process.layout()
 
 while True:
-    snake.do = process.loops(snake.do)
-    snake.checking()
-    snake.change_head_position()
-    game.score, food.food_pos = snake.snake_body_mechanism(game.score, food.food_pos, game.screen_width, game.screen_height)
-    snake.draw_snake(game.play_surface, game.white)
-    food.draw_food(game.play_surface)
-    snake.check_for_boundaries(game.game_over, game.screen_width, game.screen_height)
-    game.show_score()
-    game.refresh_screen()
-
+    snake.do = process.events(snake.do)
+    snake.direction()
+    snake.head()
+    process.score, yummy.yummy_pos = snake.body(
+        process.score, yummy.yummy_pos, process.WIDTH, process.HEIGHT)
+    snake.snake_image(process.screen, process.red)
+    yummy.yummy_image(process.screen)
+    snake.boundaries(process.gameover, process.WIDTH, process.HEIGHT)
+    process.score()
+    process.refresh()

@@ -3,6 +3,8 @@ Include/
 Lib/
 Scripts/
 venvhome/
+
+# Игнорировать файлы:
 1.py
 
 # Игнорирование логов
